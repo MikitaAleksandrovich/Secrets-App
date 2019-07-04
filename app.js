@@ -5,8 +5,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
-const saltRounds = 10;
+const session = require('express-session');
+const passport = require('passport');
+const passportLocalMongoose = require('passport-local-mongoose');
 
 const app = express();
 
@@ -16,6 +17,15 @@ app.use(bodyParser.urlencoded({
     extended: true
 }));
 
+app.use(session({
+    secret: 'Our little secret',
+    resave: false,
+    saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+
+
 mongoose.connect('mongodb://localhost:27017/userDB', {useNewUrlParser: true});
 
 const userSchema = new mongoose.Schema ({
@@ -23,7 +33,15 @@ const userSchema = new mongoose.Schema ({
     password: String
 });
 
+userSchema.plugin(passportLocalMongoose);
+
 const User = new mongoose.model('User', userSchema);
+
+
+passport.use(new LocalStrategy(User.authenticate()));
+ 
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 
 
 app.get('/', (req, res) => {
@@ -40,42 +58,14 @@ app.get('/register', (req, res) => {
 
 app.post('/register', (req, res) => {
 
-    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
-        const newUser = new User({
-            email: req.body.username,
-            password: hash
-        });
-        
-        newUser.save(err => {
-            if(err) {
-                console.log(err);
-            } else {
-                res.render('secrets');
-            }
-        });
-    });
+
+
 });
 
 app.post('/login', (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
 
-    User.findOne(
-        { email: username },
-        (err, foundUser) => {
-            if(err) {
-                console.log(err);
-            } else {
-                if(foundUser) {
-                    bcrypt.compare(password, foundUser.password, (err, result) => {
-                        if (result === true) {
-                            res.render('secrets');
-                        }
-                    });
-                }
-            }
-        }
-    );
 });
 
 
